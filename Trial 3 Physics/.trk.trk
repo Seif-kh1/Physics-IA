@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<object class="org.opensourcephysics.cabrillo.tracker.TFrame">
+    <property name="tabs" type="array" class="[[Ljava.lang.String;">
+        <property name="[0]" type="array" class="[Ljava.lang.String;">
+            <property name="[0]" type="string">C:/Users/seify/Downloads/Trial 1 Physics/120 kpA.trk</property>
+            <property name="[1]" type="string">120 kpA.trk</property>
+        </property>
+        <property name="[1]" type="array" class="[Ljava.lang.String;">
+            <property name="[0]" type="string">C:/Users/seify/Downloads/Trial 1 Physics/100 kpA.trk</property>
+            <property name="[1]" type="string">100 kpA.trk</property>
+        </property>
+        <property name="[2]" type="array" class="[Ljava.lang.String;">
+            <property name="[0]" type="string">C:/Users/seify/Downloads/Trial 1 Physics/80 kpA.trk</property>
+            <property name="[1]" type="string">80 kpA.trk</property>
+        </property>
+        <property name="[3]" type="array" class="[Ljava.lang.String;">
+            <property name="[0]" type="string">C:/Users/seify/Downloads/Trial 1 Physics/60 kpA.trk</property>
+            <property name="[1]" type="string">60 kpA.trk</property>
+        </property>
+        <property name="[4]" type="array" class="[Ljava.lang.String;">
+            <property name="[0]" type="string">C:/Users/seify/Downloads/Trial 1 Physics/40 kpA.trk</property>
+            <property name="[1]" type="string">40 kpA.trk</property>
+        </property>
+    </property>
+</object>
