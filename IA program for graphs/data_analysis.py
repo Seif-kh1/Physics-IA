@@ -624,6 +624,35 @@ if show_graphs:
     plt.grid(True)
     plot_and_save(fig6, 'pressure_vs_all_cor.png')
 
+    # 7. Average COR vs Pressure plot with logarithmic fit
+    fig7 = plt.figure(figsize=(15.18, 7.38))
+    
+    # Get data from df_cor_analysis
+    pressures = df_cor_analysis['Pressure (PSI)'].values
+    avg_cors = df_cor_analysis['Average COR'].values
+    abs_uncertainties = df_cor_analysis['Avg Absolute Uncertainty'].values
+    
+    # Add logarithmic fit and create label with equation
+    z = np.polyfit(np.log(pressures), avg_cors, 1)
+    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+    
+    # Plot data with error bars
+    line = plt.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
+                fmt='o', label=f'Average COR\n{equation}',
+                markersize=5, capsize=3, capthick=1, elinewidth=1)
+    
+    # Plot logarithmic fit
+    x_fit = np.linspace(min(pressures), max(pressures), 100)
+    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, 
+             color=line.lines[0].get_color())
+
+    plt.xlabel('Internal Pressure (PSI)')
+    plt.ylabel('Average Coefficient of Restitution (COR)')
+    plt.title('Pressure vs. Average COR with Absolute Uncertainties')
+    plt.legend()
+    plt.grid(True)
+    plot_and_save(fig7, 'pressure_vs_average_cor.png')
+
     if save_graphs:
         print("\nGraphs have been saved successfully.")
 
