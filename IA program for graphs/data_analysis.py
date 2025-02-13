@@ -355,9 +355,9 @@ excel_files = {
 }
 
 # Ask user for specific graph or normal execution
-graph_choice = input("Enter a graph number (1-7) to see only that graph, or 'n' to continue normally: ").lower().strip()
+graph_choice = input("Enter a graph number (1-8) to see only that graph, or 'n' to continue normally: ").lower().strip()
 
-if graph_choice.isdigit() and 1 <= int(graph_choice) <= 7:
+if graph_choice.isdigit() and 1 <= int(graph_choice) <= 8:
     # Show only the selected graph
     graph_num = int(graph_choice)
     save_single = input(f"Do you want to save graph {graph_num}? (y/n): ").lower().strip() == 'y'
@@ -612,6 +612,44 @@ if graph_choice.isdigit() and 1 <= int(graph_choice) <= 7:
                 fig.savefig(os.path.join(graphs_folder, 'pressure_vs_average_cor.png'), dpi=100, bbox_inches='tight')
             plt.show()
             plt.close(fig)  # Close the figure after showing
+        elif graph_num == 8:
+            # Linearized Average COR vs ln(Pressure) plot
+            fig8 = plt.figure(figsize=(15.18, 7.38))
+            
+            # Get data from df_cor_analysis
+            pressures = df_cor_analysis['Pressure (PSI)'].values
+            avg_cors = df_cor_analysis['Average COR'].values
+            
+            # Calculate ln(pressure) values
+            ln_pressures = np.log(pressures)
+            
+            # Get fractional uncertainties from df_cor_analysis
+            fractional_uncertainties = df_cor_analysis['Fractional Uncertainty'].values
+            
+            # Add linear fit and create label with equation
+            z = np.polyfit(ln_pressures, avg_cors, 1)
+            equation = f'y = {z[0]:.3f}x + {z[1]:.3f}'
+            r_squared = np.corrcoef(ln_pressures, avg_cors)[0,1]**2
+            
+            # Plot data with fractional uncertainties as error bars
+            line = plt.errorbar(ln_pressures, avg_cors, yerr=avg_cors * fractional_uncertainties,
+                        fmt='o', label=f'Average COR\n{equation}\nR² = {r_squared:.3f}',
+                        markersize=5, capsize=3, capthick=1, elinewidth=1)
+            
+            # Plot linear fit
+            x_fit = np.linspace(min(ln_pressures), max(ln_pressures), 100)
+            plt.plot(x_fit, z[0] * x_fit + z[1], '--', alpha=0.5, 
+                     color=line.lines[0].get_color())
+
+            plt.xlabel('ln(Pressure) [ln(PSI)]')
+            plt.ylabel('Average Coefficient of Restitution (COR)')
+            plt.title('Linearized Relationship: ln(Pressure) vs. Average COR\nwith Fractional Uncertainties')
+            plt.legend()
+            plt.grid(True)
+            if save_single:
+                fig8.savefig(os.path.join(graphs_folder, 'ln_pressure_vs_average_cor.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig8)  # Close the figure after showing
     
     # Create the graphs folder if saving is requested
     if save_single:
@@ -923,6 +961,37 @@ else:
         plt.legend()
         plt.grid(True)
         plot_and_save(fig7, 'pressure_vs_average_cor.png')
+
+        # 8. Linearized Average COR vs ln(Pressure) plot
+        fig8 = plt.figure(figsize=(15.18, 7.38))
+        
+        # Calculate ln(pressure) values
+        ln_pressures = np.log(pressures)
+        
+        # Get fractional uncertainties from df_cor_analysis
+        fractional_uncertainties = df_cor_analysis['Fractional Uncertainty'].values
+        
+        # Add linear fit and create label with equation
+        z = np.polyfit(ln_pressures, avg_cors, 1)
+        equation = f'y = {z[0]:.3f}x + {z[1]:.3f}'
+        r_squared = np.corrcoef(ln_pressures, avg_cors)[0,1]**2
+        
+        # Plot data with fractional uncertainties as error bars
+        line = plt.errorbar(ln_pressures, avg_cors, yerr=avg_cors * fractional_uncertainties,
+                    fmt='o', label=f'Average COR\n{equation}\nR² = {r_squared:.3f}',
+                    markersize=5, capsize=3, capthick=1, elinewidth=1)
+        
+        # Plot linear fit
+        x_fit = np.linspace(min(ln_pressures), max(ln_pressures), 100)
+        plt.plot(x_fit, z[0] * x_fit + z[1], '--', alpha=0.5, 
+                 color=line.lines[0].get_color())
+
+        plt.xlabel('ln(Pressure) [ln(PSI)]')
+        plt.ylabel('Average Coefficient of Restitution (COR)')
+        plt.title('Linearized Relationship: ln(Pressure) vs. Average COR\nwith Fractional Uncertainties')
+        plt.legend()
+        plt.grid(True)
+        plot_and_save(fig8, 'ln_pressure_vs_average_cor.png')
 
         if save_graphs:
             print("\nGraphs have been saved successfully.")
