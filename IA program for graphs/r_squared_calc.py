@@ -16,5 +16,5 @@ ss_res = np.sum((avg_cors - y_pred) ** 2)
 ss_tot = np.sum((avg_cors - np.mean(avg_cors)) ** 2)
 r_squared = 1 - (ss_res / ss_tot)
 
-print(f"Using existing logarithmic fit:")
+print(f"Logarithmic equation: y = {z[0]:.6f}ln(x) + {z[1]:.6f}")
 print(f"R² value: {r_squared:.6f}")
