@@ -24,6 +24,7 @@ def calculate_cor(heights):
 pressures_psi = [6.5, 5.5, 4.5, 3.5, 2.5, 1.5]
 pressures_kpa = [44.81, 37.92, 31.02, 24.13, 17.23, 10.34]
 bounces = np.arange(1, 7)
+h0 = 1.7  # Initial drop height in meters
 
 # Rebound heights for each pressure (averaged over 5 trials)
 rebound_heights = {
@@ -175,54 +176,56 @@ for pressure in pressures_psi:
 df_cor_absolute_uncertainties = pd.DataFrame(cor_absolute_uncertainties_data)
 
 # COR Analysis with uncertainties
-h0 = 1.7  # Initial drop height in meters
-dh = 0.020  # Uncertainty in height measurement
-
-# Calculate detailed COR analysis
 cor_analysis_results = []
 
-for pressure, trials in trial_data.items():
-    cors = []
-    fractional_uncertainties = []
-    
-    for trial in trials:
-        cor_values = [np.sqrt(trial[0] / h0)]  # First COR
-        unc_values = [0.5 * (dh / trial[0] + dh / h0)]  # First fractional uncertainty
-        
-        for i in range(1, len(trial)):
-            cor = np.sqrt(trial[i] / trial[i - 1])
-            cor_values.append(cor)
-            unc = 0.5 * (dh / trial[i] + dh / trial[i - 1])
-            unc_values.append(unc)
-        
-        cors.extend(cor_values)
-        fractional_uncertainties.extend(unc_values)
-    
-    # Compute averages
-    avg_cor = np.mean(cors)
-    avg_fractional_uncertainty = np.mean(fractional_uncertainties)
-    avg_absolute_uncertainty = avg_fractional_uncertainty * avg_cor
-    
-    # Store results
-    cor_analysis_results.append({
-        "Pressure (PSI)": pressure,
-        "Average COR": avg_cor,
-        "Avg Fractional Uncertainty": avg_fractional_uncertainty,
-        "Avg Absolute Uncertainty": avg_absolute_uncertainty
-    })
+# Create initial COR data dictionary
+cor_data = {
+    "Pressure (PSI)": pressures_psi,
+    "Bounce 0-1": [],
+    "Bounce 1-2": [],
+    "Bounce 2-3": [],
+    "Bounce 3-4": [],
+    "Bounce 4-5": [],
+    "Bounce 5-6": []
+}
 
-# Create DataFrame for COR analysis
-df_cor_analysis = pd.DataFrame(cor_analysis_results)
+# Calculate CORs for each pressure and bounce
+for pressure in pressures_psi:
+    # Calculate initial COR (Bounce 0-1)
+    avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
+    cor_data["Bounce 0-1"].append(np.sqrt(avg_height / h0))
+    
+    # Calculate subsequent CORs
+    avg_heights = np.mean(trial_data[pressure], axis=0)
+    for i in range(len(avg_heights)-1):
+        cor = np.sqrt(avg_heights[i+1] / avg_heights[i])
+        cor_data[f"Bounce {i+1}-{i+2}"].append(cor)
 
-# After creating df_cor_analysis, format it to better display the results
-df_cor_analysis = df_cor_analysis.round({
-    "Average COR": 4,
-    "Avg Fractional Uncertainty": 4,
-    "Avg Absolute Uncertainty": 4
-})
+# Convert to DataFrame and calculate uncertainties
+df_cor_analysis = pd.DataFrame(cor_data)
+
+# Calculate the mean COR for each pressure
+df_cor_analysis["Average COR"] = df_cor_analysis.iloc[:, 1:].mean(axis=1)
+
+# Calculate the standard deviation (sample standard deviation, n-1)
+df_cor_analysis["Standard Deviation"] = df_cor_analysis.iloc[:, 1:7].std(axis=1, ddof=1)
+
+# Calculate the absolute uncertainty (Standard Error of the Mean)
+df_cor_analysis["Absolute Uncertainty"] = df_cor_analysis["Standard Deviation"] / np.sqrt(6)
+
+# Calculate the fractional uncertainty
+df_cor_analysis["Fractional Uncertainty"] = df_cor_analysis["Absolute Uncertainty"] / df_cor_analysis["Average COR"]
 
 # Sort by pressure from highest to lowest
 df_cor_analysis = df_cor_analysis.sort_values(by="Pressure (PSI)", ascending=False)
+
+# Round the results
+df_cor_analysis = df_cor_analysis.round({
+    "Average COR": 4,
+    "Standard Deviation": 4,
+    "Absolute Uncertainty": 4,
+    "Fractional Uncertainty": 4
+})
 
 # Calculate COR for all trials and pressures
 data = []
@@ -584,13 +587,13 @@ if graph_choice.isdigit() and 1 <= int(graph_choice) <= 7:
             # Get data from df_cor_analysis
             pressures = df_cor_analysis['Pressure (PSI)'].values
             avg_cors = df_cor_analysis['Average COR'].values
-            abs_uncertainties = df_cor_analysis['Avg Absolute Uncertainty'].values
+            abs_uncertainties = df_cor_analysis['Absolute Uncertainty'].values
             
             # Add logarithmic fit and create label with equation
             z = np.polyfit(np.log(pressures), avg_cors, 1)
             equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
             
-            # Plot data with error bars
+            # Plot data with error bars using new uncertainties
             line = plt.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
                         fmt='o', label=f'Average COR\n{equation}',
                         markersize=5, capsize=3, capthick=1, elinewidth=1)
@@ -602,7 +605,7 @@ if graph_choice.isdigit() and 1 <= int(graph_choice) <= 7:
 
             plt.xlabel('Internal Pressure (PSI)')
             plt.ylabel('Average Coefficient of Restitution (COR)')
-            plt.title('Pressure vs. Average COR with Absolute Uncertainties')
+            plt.title('Pressure vs. Average COR with Standard Error of the Mean')
             plt.legend()
             plt.grid(True)
             if save_single:
@@ -898,15 +901,15 @@ else:
         # Get data from df_cor_analysis
         pressures = df_cor_analysis['Pressure (PSI)'].values
         avg_cors = df_cor_analysis['Average COR'].values
-        abs_uncertainties = df_cor_analysis['Avg Absolute Uncertainty'].values
+        abs_uncertainties = df_cor_analysis['Absolute Uncertainty'].values
         
         # Add logarithmic fit and create label with equation
         z = np.polyfit(np.log(pressures), avg_cors, 1)
         equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
         
-        # Plot data with error bars
+        # Plot data with error bars using new uncertainties
         line = plt.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
-                    fmt='o', label=f'Average COR\n{equation}',
+                    fmt='o', label=f'Average COR\n{equation}\nTypical fractional uncertainty: {df_cor_analysis["Fractional Uncertainty"].mean():.3%}',
                     markersize=5, capsize=3, capthick=1, elinewidth=1)
         
         # Plot logarithmic fit
@@ -916,7 +919,7 @@ else:
 
         plt.xlabel('Internal Pressure (PSI)')
         plt.ylabel('Average Coefficient of Restitution (COR)')
-        plt.title('Pressure vs. Average COR with Absolute Uncertainties')
+        plt.title('Pressure vs. Average COR with Standard Error of the Mean')
         plt.legend()
         plt.grid(True)
         plot_and_save(fig7, 'pressure_vs_average_cor.png')
