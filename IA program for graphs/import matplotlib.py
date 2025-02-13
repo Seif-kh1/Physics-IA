@@ -30,26 +30,20 @@ ax1.set_title('Pressure vs. Average COR')
 ax1.legend()
 ax1.grid(True)
 
-# Plot 2: Linearized form - modified to match graph 7's style
-# Use the same x_fit range as graph 7
-x_fit = np.linspace(min(pressures), max(pressures), 100)
-y = 0.033 * x_fit + 0.865
+# Plot 2: Linearized form (y = 0.033x + 0.865)
+x = np.linspace(0, 7, 100)  # Range covering all pressure values
+y = 0.033 * x + 0.865
 
-ax2.plot(x_fit, y, '--', alpha=0.5, label='y = 0.033x + 0.865')
-line = ax2.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
-                   fmt='o', label='Data points',
-                   markersize=5, capsize=3, capthick=1, elinewidth=1)
+ax2.plot(x, y, '-', label='y = 0.033x + 0.865')
+ax2.scatter(pressures, avg_cors, color='red', label='Data points')
+ax2.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
+            fmt='none', color='red', capsize=3)
 
-# Match the axis limits and style of graph 7
 ax2.set_xlabel('Internal Pressure (PSI)')
 ax2.set_ylabel('Average Coefficient of Restitution (COR)')
 ax2.set_title('Linearized Form of Pressure vs. Average COR')
 ax2.legend()
 ax2.grid(True)
-
-# Set y-axis ticks for the linearized plot (ax2) from 0.86 to 0.94
-ax2.yaxis.set_ticks(np.arange(0.85, 0.95, 0.02))
-ax2.set_ylim(0.85, 0.95)
 
 # Adjust layout and display
 plt.tight_layout()

@@ -351,189 +351,414 @@ excel_files = {
     }
 }
 
-# Ask user if they want to see the graphs
-show_graphs = input("Do you want to see the graphs? (y/n): ").lower().strip() == 'y'
+# Ask user for specific graph or normal execution
+graph_choice = input("Enter a graph number (1-7) to see only that graph, or 'n' to continue normally: ").lower().strip()
 
-if show_graphs:
-    # Ask user if they want to download the graphs
-    save_graphs = input("Do you want to download the graphs? (y/n): ").lower().strip() == 'y'
-
-    # Function to handle plotting and saving
-    def plot_and_save(fig, filename):
-        if save_graphs:
-            save_path = os.path.join(graphs_folder, filename)
-            fig.set_size_inches(15.18, 7.38)
-            fig.savefig(save_path, dpi=100, bbox_inches='tight')
-        plt.show()
-
-    # 1. Pressure vs Height plot with polynomial fits
-    fig1 = plt.figure(figsize=(15.18, 7.38))
-    for bounce_num in range(6):
-        bounce_heights = []
-        bounce_uncertainties = []
-        for pressure in pressures_psi:
-            heights_at_bounce = [trial[bounce_num] for trial in trial_data[pressure]]
-            avg_height = np.mean(heights_at_bounce)
-            bounce_heights.append(avg_height)
-            uncertainty = (max(heights_at_bounce) - min(heights_at_bounce)) / 2
-            bounce_uncertainties.append(uncertainty)
-        
-        # Add polynomial fit and create label with equation
-        z = np.polyfit(pressures_psi, bounce_heights, 2)
-        p = np.poly1d(z)
-        equation = f'y = {z[0]:.3f}x² + {z[1]:.3f}x + {z[2]:.3f}'
-        
-        # Plot data and fit with equation in label
-        line = plt.errorbar(pressures_psi, bounce_heights, yerr=bounce_uncertainties,
-                          fmt='o', label=f'Bounce {bounce_num + 1}\n{equation}',
-                          markersize=3, capsize=3, capthick=1, elinewidth=1)
-        x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-        plt.plot(x_fit, p(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
-
-    plt.xlabel('Internal Pressure (PSI)')
-    plt.ylabel('Average Rebound Height (m)')
-    plt.title('Pressure vs. Average Rebound Height per Bounce with Polynomial Fits')
-    plt.legend()
-    plt.grid(True)
-    plot_and_save(fig1, 'pressure_vs_height_per_bounce.png')
-
-    # 2. Bounce vs Height plot with exponential fits
-    fig2 = plt.figure(figsize=(15.18, 7.38))
-    for p in pressures_psi:
-        uncertainties = [(max([trial[i] for trial in trial_data[p]]) - 
-                        min([trial[i] for trial in trial_data[p]])) / 2 
-                        for i in range(6)]
-        heights = rebound_heights[p]
-        
-        # Add exponential fit and create label with equation
-        z = np.polyfit(bounces, np.log(heights), 1)
-        equation = f'y = {np.exp(z[1]):.3f}e^({z[0]:.3f}x)'
-        
-        # Plot data and fit with equation in label
-        line = plt.errorbar(bounces, heights, yerr=uncertainties,
-                          fmt='o', label=f'{p} PSI\n{equation}',
-                          markersize=3, capsize=3, capthick=1, elinewidth=1)
-        fit_fn = lambda x: np.exp(z[1]) * np.exp(z[0] * x)
-        x_fit = np.linspace(min(bounces), max(bounces), 100)
-        plt.plot(x_fit, fit_fn(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
-
-    plt.xlabel('Bounce Number')
-    plt.ylabel('Average Rebound Height (m)')
-    plt.title('Bounce Number vs. Average Rebound Height with Exponential Fits')
-    plt.legend(title='Pressure')
-    plt.grid(True)
-    plot_and_save(fig2, 'bounce_vs_height.png')
-
-    # 3. Bounce vs ln(Height) plot with linear fits
-    fig3 = plt.figure(figsize=(15.18, 7.38))
-    for p in pressures_psi:
-        heights = rebound_heights[p]
-        uncertainties = [(max([trial[i] for trial in trial_data[p]]) - 
-                        min([trial[i] for trial in trial_data[p]])) / 2 
-                        for i in range(6)]
-        log_uncertainties = [u/h for u, h in zip(uncertainties, heights)]
-        
-        # Add linear fit and create label with equation
-        z = np.polyfit(bounces, np.log(heights), 1)
-        equation = f'ln(y) = {z[0]:.3f}x + {z[1]:.3f}'
-        
-        # Plot data and fit with equation in label
-        line = plt.errorbar(bounces, np.log(heights), yerr=log_uncertainties,
-                          fmt='o', label=f'{p} PSI\n{equation}',
-                          markersize=3, capsize=3, capthick=1, elinewidth=1)
-        p_fit = np.poly1d(z)
-        x_fit = np.linspace(min(bounces), max(bounces), 100)
-        plt.plot(x_fit, p_fit(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
-
-    plt.xlabel('Bounce Number')
-    plt.ylabel('ln(Average Rebound Height)')
-    plt.title('Bounce Number vs. ln(Rebound Height) with Linear Fits')
-    plt.legend(title='Pressure')
-    plt.grid(True)
-    plot_and_save(fig3, 'bounce_vs_ln_height.png')
-
-    # 4. Bounce vs COR plot with exponential fits
-    fig4 = plt.figure(figsize=(15.18, 7.38))
-    for p in pressures_psi:
-        cor_values = calculate_cor(rebound_heights[p])
-        abs_uncertainties = df_cor_absolute_uncertainties[df_cor_absolute_uncertainties['Pressure (PSI)'] == p].iloc[0, 1:].values
-        
-        # Add exponential fit and create label with equation
-        z = np.polyfit(bounces[1:], np.log(cor_values), 1)
-        equation = f'y = {np.exp(z[1]):.3f}e^({z[0]:.3f}x)'
-        
-        # Plot data and fit with equation in label
-        line = plt.errorbar(bounces[1:], cor_values, yerr=abs_uncertainties[1:],
-                          fmt='o', label=f'{p} PSI\n{equation}',
-                          markersize=3, capsize=3, capthick=1, elinewidth=1)
-        fit_fn = lambda x: np.exp(z[1]) * np.exp(z[0] * x)
-        x_fit = np.linspace(min(bounces[1:]), max(bounces[1:]), 100)
-        plt.plot(x_fit, fit_fn(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
-
-    plt.xlabel('Bounce Number')
-    plt.ylabel('Coefficient of Restitution (COR)')
-    plt.title('Bounce Number vs. Coefficient of Restitution with Exponential Fits')
-    plt.legend(title='Pressure')
-    plt.grid(True)
-    plot_and_save(fig4, 'bounce_vs_cor.png')
-
-    # 5a. Pressure vs Initial COR (Bounce 0-1) plot with logarithmic fit
-    fig5a = plt.figure(figsize=(15.18, 7.38))
+if graph_choice.isdigit() and 1 <= int(graph_choice) <= 7:
+    # Show only the selected graph
+    graph_num = int(graph_choice)
+    save_single = input(f"Do you want to save graph {graph_num}? (y/n): ").lower().strip() == 'y'
     
-    # Get data for initial bounce (0-1)
-    cors = []
-    uncertainties = []
-    
-    for pressure in pressures_psi:
-        # For 0-1 bounce, use initial height of 1.7m
-        avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
-        cor = np.sqrt(avg_height / 1.7)
-        uncertainty = df_cor_absolute_uncertainties[
-            df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
-        ]['Bounce 0-1'].values[0]
+    def create_and_save_single_graph(graph_num):
+        # Don't create a separate figure at the start
+        # Remove: fig = plt.figure(figsize=(15.18, 7.38))
         
-        cors.append(cor)
-        uncertainties.append(uncertainty)
-    
-    # Add logarithmic fit and create label with equation
-    z = np.polyfit(np.log(pressures_psi), cors, 1)
-    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
-    
-    # Plot data, error bars, and fit with matching colors
-    line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
-                fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
-                markersize=3, capsize=3, capthick=1, elinewidth=1)
-    color = line.lines[0].get_color()
-    
-    # Set the error bar color to match the points
-    line[1][0].set_color(color)
-    line[2][0].set_color(color)
-    
-    # Plot logarithmic fit with matching color
-    x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
+        if graph_num == 1:
+            # Pressure vs Height plot with polynomial fits
+            fig = plt.figure(figsize=(15.18, 7.38))
+            for bounce_num in range(6):
+                bounce_heights = []
+                bounce_uncertainties = []
+                for pressure in pressures_psi:
+                    heights_at_bounce = [trial[bounce_num] for trial in trial_data[pressure]]
+                    avg_height = np.mean(heights_at_bounce)
+                    bounce_heights.append(avg_height)
+                    uncertainty = (max(heights_at_bounce) - min(heights_at_bounce)) / 2
+                    bounce_uncertainties.append(uncertainty)
+                
+                # Add polynomial fit and create label with equation
+                z = np.polyfit(pressures_psi, bounce_heights, 2)
+                p = np.poly1d(z)
+                equation = f'y = {z[0]:.3f}x² + {z[1]:.3f}x + {z[2]:.3f}'
+                
+                # Plot data and fit with equation in label
+                line = plt.errorbar(pressures_psi, bounce_heights, yerr=bounce_uncertainties,
+                                  fmt='o', label=f'Bounce {bounce_num + 1}\n{equation}',
+                                  markersize=3, capsize=3, capthick=1, elinewidth=1)
+                x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+                plt.plot(x_fit, p(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+            plt.title('Pressure vs. Average Rebound Height per Bounce with Polynomial Fits')
+            if save_single:
+                fig.savefig(os.path.join(graphs_folder, 'pressure_vs_height_per_bounce.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
+                
+        elif graph_num == 2:
+            # Bounce vs Height plot
+            fig = plt.figure(figsize=(15.18, 7.38))
+            for p in pressures_psi:
+                uncertainties = [(max([trial[i] for trial in trial_data[p]]) - 
+                                min([trial[i] for trial in trial_data[p]])) / 2 
+                                for i in range(6)]
+                heights = rebound_heights[p]
+                
+                # Add exponential fit and create label with equation
+                z = np.polyfit(bounces, np.log(heights), 1)
+                equation = f'y = {np.exp(z[1]):.3f}e^({z[0]:.3f}x)'
+                
+                # Plot data and fit with equation in label
+                line = plt.errorbar(bounces, heights, yerr=uncertainties,
+                                  fmt='o', label=f'{p} PSI\n{equation}',
+                                  markersize=3, capsize=3, capthick=1, elinewidth=1)
+                fit_fn = lambda x: np.exp(z[1]) * np.exp(z[0] * x)
+                x_fit = np.linspace(min(bounces), max(bounces), 100)
+                plt.plot(x_fit, fit_fn(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+            plt.title('Bounce Number vs. Average Rebound Height with Exponential Fits')
+            if save_single:
+                fig.savefig(os.path.join(graphs_folder, 'bounce_vs_height.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
+                
+        elif graph_num == 3:
+            # Bounce vs ln(Height) plot
+            fig = plt.figure(figsize=(15.18, 7.38))
+            for p in pressures_psi:
+                heights = rebound_heights[p]
+                uncertainties = [(max([trial[i] for trial in trial_data[p]]) - 
+                                min([trial[i] for trial in trial_data[p]])) / 2 
+                                for i in range(6)]
+                log_uncertainties = [u/h for u, h in zip(uncertainties, heights)]
+                
+                # Add linear fit and create label with equation
+                z = np.polyfit(bounces, np.log(heights), 1)
+                equation = f'ln(y) = {z[0]:.3f}x + {z[1]:.3f}'
+                
+                # Plot data and fit with equation in label
+                line = plt.errorbar(bounces, np.log(heights), yerr=log_uncertainties,
+                                  fmt='o', label=f'{p} PSI\n{equation}',
+                                  markersize=3, capsize=3, capthick=1, elinewidth=1)
+                p_fit = np.poly1d(z)
+                x_fit = np.linspace(min(bounces), max(bounces), 100)
+                plt.plot(x_fit, p_fit(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+            plt.title('Bounce Number vs. ln(Rebound Height) with Linear Fits')
+            if save_single:
+                fig.savefig(os.path.join(graphs_folder, 'bounce_vs_ln_height.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
+                
+        elif graph_num == 4:
+            # Bounce vs COR plot
+            fig = plt.figure(figsize=(15.18, 7.38))
+            for p in pressures_psi:
+                cor_values = calculate_cor(rebound_heights[p])
+                abs_uncertainties = df_cor_absolute_uncertainties[df_cor_absolute_uncertainties['Pressure (PSI)'] == p].iloc[0, 1:].values
+                
+                # Add exponential fit and create label with equation
+                z = np.polyfit(bounces[1:], np.log(cor_values), 1)
+                equation = f'y = {np.exp(z[1]):.3f}e^({z[0]:.3f}x)'
+                
+                # Plot data and fit with equation in label
+                line = plt.errorbar(bounces[1:], cor_values, yerr=abs_uncertainties[1:],
+                                  fmt='o', label=f'{p} PSI\n{equation}',
+                                  markersize=3, capsize=3, capthick=1, elinewidth=1)
+                fit_fn = lambda x: np.exp(z[1]) * np.exp(z[0] * x)
+                x_fit = np.linspace(min(bounces[1:]), max(bounces[1:]), 100)
+                plt.plot(x_fit, fit_fn(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+            plt.title('Bounce Number vs. Coefficient of Restitution with Exponential Fits')
+            if save_single:
+                fig.savefig(os.path.join(graphs_folder, 'bounce_vs_cor.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
+                
+        elif graph_num == 5:
+            # Pressure vs Initial COR plot
+            fig5a = plt.figure(figsize=(15.18, 7.38))
+            
+            # Get data for initial bounce (0-1)
+            cors = []
+            uncertainties = []
+            
+            for pressure in pressures_psi:
+                # For 0-1 bounce, use initial height of 1.7m
+                avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
+                cor = np.sqrt(avg_height / 1.7)
+                uncertainty = df_cor_absolute_uncertainties[
+                    df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
+                ]['Bounce 0-1'].values[0]
+                
+                cors.append(cor)
+                uncertainties.append(uncertainty)
+            
+            # Add logarithmic fit and create label with equation
+            z = np.polyfit(np.log(pressures_psi), cors, 1)
+            equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+            
+            # Plot data, error bars, and fit with matching colors
+            line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
+                        fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
+                        markersize=3, capsize=3, capthick=1, elinewidth=1)
+            color = line.lines[0].get_color()
+            
+            # Set the error bar color to match the points
+            line[1][0].set_color(color)
+            line[2][0].set_color(color)
+            
+            # Plot logarithmic fit with matching color
+            x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+            plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
-    plt.xlabel('Internal Pressure (PSI)')
-    plt.ylabel('Coefficient of Restitution (COR)')
-    plt.title('Pressure vs. Initial Coefficient of Restitution (Bounce 0-1)')
-    plt.legend()
-    plt.grid(True)
-    plot_and_save(fig5a, 'pressure_vs_initial_cor.png')
+            plt.xlabel('Internal Pressure (PSI)')
+            plt.ylabel('Coefficient of Restitution (COR)')
+            plt.title('Pressure vs. Initial Coefficient of Restitution (Bounce 0-1)')
+            plt.legend()
+            plt.grid(True)
+            if save_single:
+                fig.savefig(os.path.join(graphs_folder, 'pressure_vs_initial_cor.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
+                
+        elif graph_num == 6:
+            # Combined Pressure vs All COR plot
+            fig6 = plt.figure(figsize=(15.18, 7.38))
+            
+            # First plot initial bounce (0-1)
+            cors = []
+            uncertainties = []
+            for pressure in pressures_psi:
+                avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
+                cor = np.sqrt(avg_height / 1.7)
+                uncertainty = df_cor_absolute_uncertainties[
+                    df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
+                ]['Bounce 0-1'].values[0]
+                cors.append(cor)
+                uncertainties.append(uncertainty)
+            
+            z = np.polyfit(np.log(pressures_psi), cors, 1)
+            equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+            
+            line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
+                        fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
+                        markersize=3, capsize=3, capthick=1, elinewidth=1)
+            color = line.lines[0].get_color()
+            line[1][0].set_color(color)
+            line[2][0].set_color(color)
+            
+            x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+            plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
-    # 5b. Pressure vs Subsequent COR plot with logarithmic fits
-    fig5b = plt.figure(figsize=(15.18, 7.38))
+            # Then plot subsequent bounces (1-2 through 5-6)
+            for bounce_transition in range(1, 6):
+                cors = []
+                uncertainties = []
+                for pressure in pressures_psi:
+                    avg_heights = np.mean(trial_data[pressure], axis=0)
+                    cor = np.sqrt(avg_heights[bounce_transition] / avg_heights[bounce_transition - 1])
+                    uncertainty = df_cor_absolute_uncertainties[
+                        df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
+                    ][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
+                    cors.append(cor)
+                    uncertainties.append(uncertainty)
+                
+                z = np.polyfit(np.log(pressures_psi), cors, 1)
+                equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+                
+                line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
+                                  fmt='o', label=f'Bounce {bounce_transition}-{bounce_transition+1}\n{equation}',
+                                  markersize=3, capsize=3, capthick=1, elinewidth=1)
+                color = line.lines[0].get_color()
+                line[1][0].set_color(color)
+                line[2][0].set_color(color)
+                
+                x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+                plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
+            plt.title('Pressure vs. All Coefficients of Restitution')
+            if save_single:
+                fig.savefig(os.path.join(graphs_folder, 'pressure_vs_all_cor.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
+                
+        elif graph_num == 7:
+            # Average COR vs Pressure plot
+            fig = plt.figure(figsize=(15.18, 7.38))
+            
+            # Get data from df_cor_analysis
+            pressures = df_cor_analysis['Pressure (PSI)'].values
+            avg_cors = df_cor_analysis['Average COR'].values
+            abs_uncertainties = df_cor_analysis['Avg Absolute Uncertainty'].values
+            
+            # Add logarithmic fit and create label with equation
+            z = np.polyfit(np.log(pressures), avg_cors, 1)
+            equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+            
+            # Plot data with error bars
+            line = plt.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
+                        fmt='o', label=f'Average COR\n{equation}',
+                        markersize=5, capsize=3, capthick=1, elinewidth=1)
+            
+            # Plot logarithmic fit
+            x_fit = np.linspace(min(pressures), max(pressures), 100)
+            plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, 
+                     color=line.lines[0].get_color())
+
+            plt.xlabel('Internal Pressure (PSI)')
+            plt.ylabel('Average Coefficient of Restitution (COR)')
+            plt.title('Pressure vs. Average COR with Absolute Uncertainties')
+            plt.legend()
+            plt.grid(True)
+            if save_single:
+                fig.savefig(os.path.join(graphs_folder, 'pressure_vs_average_cor.png'), dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
     
-    # Get data for each bounce transition (1-2 through 5-6)
-    for bounce_transition in range(1, 6):  # 1 to 5
+    # Create the graphs folder if saving is requested
+    if save_single:
+        os.makedirs(graphs_folder, exist_ok=True)
+    
+    # Show and optionally save the selected graph
+    create_and_save_single_graph(graph_num)
+    
+else:
+    # Continue with normal execution
+    show_graphs = input("Do you want to see the graphs? (y/n): ").lower().strip() == 'y'
+
+    if show_graphs:
+        # Ask user if they want to download the graphs
+        save_graphs = input("Do you want to download the graphs? (y/n): ").lower().strip() == 'y'
+
+        # Function to handle plotting and saving
+        def plot_and_save(fig, filename):
+            if save_graphs:
+                save_path = os.path.join(graphs_folder, filename)
+                fig.set_size_inches(15.18, 7.38)
+                fig.savefig(save_path, dpi=100, bbox_inches='tight')
+            plt.show()
+            plt.close(fig)  # Close the figure after showing
+
+        # 1. Pressure vs Height plot with polynomial fits
+        fig1 = plt.figure(figsize=(15.18, 7.38))
+        for bounce_num in range(6):
+            bounce_heights = []
+            bounce_uncertainties = []
+            for pressure in pressures_psi:
+                heights_at_bounce = [trial[bounce_num] for trial in trial_data[pressure]]
+                avg_height = np.mean(heights_at_bounce)
+                bounce_heights.append(avg_height)
+                uncertainty = (max(heights_at_bounce) - min(heights_at_bounce)) / 2
+                bounce_uncertainties.append(uncertainty)
+            
+            # Add polynomial fit and create label with equation
+            z = np.polyfit(pressures_psi, bounce_heights, 2)
+            p = np.poly1d(z)
+            equation = f'y = {z[0]:.3f}x² + {z[1]:.3f}x + {z[2]:.3f}'
+            
+            # Plot data and fit with equation in label
+            line = plt.errorbar(pressures_psi, bounce_heights, yerr=bounce_uncertainties,
+                              fmt='o', label=f'Bounce {bounce_num + 1}\n{equation}',
+                              markersize=3, capsize=3, capthick=1, elinewidth=1)
+            x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+            plt.plot(x_fit, p(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+
+        plt.xlabel('Internal Pressure (PSI)')
+        plt.ylabel('Average Rebound Height (m)')
+        plt.title('Pressure vs. Average Rebound Height per Bounce with Polynomial Fits')
+        plt.legend()
+        plt.grid(True)
+        plot_and_save(fig1, 'pressure_vs_height_per_bounce.png')
+
+        # 2. Bounce vs Height plot with exponential fits
+        fig2 = plt.figure(figsize=(15.18, 7.38))
+        for p in pressures_psi:
+            uncertainties = [(max([trial[i] for trial in trial_data[p]]) - 
+                            min([trial[i] for trial in trial_data[p]])) / 2 
+                            for i in range(6)]
+            heights = rebound_heights[p]
+            
+            # Add exponential fit and create label with equation
+            z = np.polyfit(bounces, np.log(heights), 1)
+            equation = f'y = {np.exp(z[1]):.3f}e^({z[0]:.3f}x)'
+            
+            # Plot data and fit with equation in label
+            line = plt.errorbar(bounces, heights, yerr=uncertainties,
+                              fmt='o', label=f'{p} PSI\n{equation}',
+                              markersize=3, capsize=3, capthick=1, elinewidth=1)
+            fit_fn = lambda x: np.exp(z[1]) * np.exp(z[0] * x)
+            x_fit = np.linspace(min(bounces), max(bounces), 100)
+            plt.plot(x_fit, fit_fn(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+
+        plt.xlabel('Bounce Number')
+        plt.ylabel('Average Rebound Height (m)')
+        plt.title('Bounce Number vs. Average Rebound Height with Exponential Fits')
+        plt.legend(title='Pressure')
+        plt.grid(True)
+        plot_and_save(fig2, 'bounce_vs_height.png')
+
+        # 3. Bounce vs ln(Height) plot with linear fits
+        fig3 = plt.figure(figsize=(15.18, 7.38))
+        for p in pressures_psi:
+            heights = rebound_heights[p]
+            uncertainties = [(max([trial[i] for trial in trial_data[p]]) - 
+                            min([trial[i] for trial in trial_data[p]])) / 2 
+                            for i in range(6)]
+            log_uncertainties = [u/h for u, h in zip(uncertainties, heights)]
+            
+            # Add linear fit and create label with equation
+            z = np.polyfit(bounces, np.log(heights), 1)
+            equation = f'ln(y) = {z[0]:.3f}x + {z[1]:.3f}'
+            
+            # Plot data and fit with equation in label
+            line = plt.errorbar(bounces, np.log(heights), yerr=log_uncertainties,
+                              fmt='o', label=f'{p} PSI\n{equation}',
+                              markersize=3, capsize=3, capthick=1, elinewidth=1)
+            p_fit = np.poly1d(z)
+            x_fit = np.linspace(min(bounces), max(bounces), 100)
+            plt.plot(x_fit, p_fit(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+
+        plt.xlabel('Bounce Number')
+        plt.ylabel('ln(Average Rebound Height)')
+        plt.title('Bounce Number vs. ln(Rebound Height) with Linear Fits')
+        plt.legend(title='Pressure')
+        plt.grid(True)
+        plot_and_save(fig3, 'bounce_vs_ln_height.png')
+
+        # 4. Bounce vs COR plot with exponential fits
+        fig4 = plt.figure(figsize=(15.18, 7.38))
+        for p in pressures_psi:
+            cor_values = calculate_cor(rebound_heights[p])
+            abs_uncertainties = df_cor_absolute_uncertainties[df_cor_absolute_uncertainties['Pressure (PSI)'] == p].iloc[0, 1:].values
+            
+            # Add exponential fit and create label with equation
+            z = np.polyfit(bounces[1:], np.log(cor_values), 1)
+            equation = f'y = {np.exp(z[1]):.3f}e^({z[0]:.3f}x)'
+            
+            # Plot data and fit with equation in label
+            line = plt.errorbar(bounces[1:], cor_values, yerr=abs_uncertainties[1:],
+                              fmt='o', label=f'{p} PSI\n{equation}',
+                              markersize=3, capsize=3, capthick=1, elinewidth=1)
+            fit_fn = lambda x: np.exp(z[1]) * np.exp(z[0] * x)
+            x_fit = np.linspace(min(bounces[1:]), max(bounces[1:]), 100)
+            plt.plot(x_fit, fit_fn(x_fit), '--', alpha=0.5, color=line.lines[0].get_color())
+
+        plt.xlabel('Bounce Number')
+        plt.ylabel('Coefficient of Restitution (COR)')
+        plt.title('Bounce Number vs. Coefficient of Restitution with Exponential Fits')
+        plt.legend(title='Pressure')
+        plt.grid(True)
+        plot_and_save(fig4, 'bounce_vs_cor.png')
+
+        # 5a. Pressure vs Initial COR (Bounce 0-1) plot with logarithmic fit
+        fig5a = plt.figure(figsize=(15.18, 7.38))
+        
+        # Get data for initial bounce (0-1)
         cors = []
         uncertainties = []
         
         for pressure in pressures_psi:
-            avg_heights = np.mean(trial_data[pressure], axis=0)
-            cor = np.sqrt(avg_heights[bounce_transition] / avg_heights[bounce_transition - 1])
+            # For 0-1 bounce, use initial height of 1.7m
+            avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
+            cor = np.sqrt(avg_height / 1.7)
             uncertainty = df_cor_absolute_uncertainties[
                 df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
-            ][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
+            ]['Bounce 0-1'].values[0]
             
             cors.append(cor)
             uncertainties.append(uncertainty)
@@ -544,8 +769,8 @@ if show_graphs:
         
         # Plot data, error bars, and fit with matching colors
         line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
-                          fmt='o', label=f'Bounce {bounce_transition}-{bounce_transition+1}\n{equation}',
-                          markersize=3, capsize=3, capthick=1, elinewidth=1)
+                    fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
+                    markersize=3, capsize=3, capthick=1, elinewidth=1)
         color = line.lines[0].get_color()
         
         # Set the error bar color to match the points
@@ -556,51 +781,68 @@ if show_graphs:
         x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
         plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
-    plt.xlabel('Internal Pressure (PSI)')
-    plt.ylabel('Coefficient of Restitution (COR)')
-    plt.title('Pressure vs. Subsequent Coefficients of Restitution')
-    plt.legend()
-    plt.grid(True)
-    plot_and_save(fig5b, 'pressure_vs_subsequent_cor.png')
+        plt.xlabel('Internal Pressure (PSI)')
+        plt.ylabel('Coefficient of Restitution (COR)')
+        plt.title('Pressure vs. Initial Coefficient of Restitution (Bounce 0-1)')
+        plt.legend()
+        plt.grid(True)
+        plot_and_save(fig5a, 'pressure_vs_initial_cor.png')
 
-    # 6. Combined Pressure vs All COR plot with logarithmic fits
-    fig6 = plt.figure(figsize=(15.18, 7.38))
-    
-    # First plot initial bounce (0-1)
-    cors = []
-    uncertainties = []
-    for pressure in pressures_psi:
-        avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
-        cor = np.sqrt(avg_height / 1.7)
-        uncertainty = df_cor_absolute_uncertainties[
-            df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
-        ]['Bounce 0-1'].values[0]
-        cors.append(cor)
-        uncertainties.append(uncertainty)
-    
-    z = np.polyfit(np.log(pressures_psi), cors, 1)
-    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
-    
-    line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
-                fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
-                markersize=3, capsize=3, capthick=1, elinewidth=1)
-    color = line.lines[0].get_color()
-    line[1][0].set_color(color)
-    line[2][0].set_color(color)
-    
-    x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
+        # 5b. Pressure vs Subsequent COR plot with logarithmic fits
+        fig5b = plt.figure(figsize=(15.18, 7.38))
+        
+        # Get data for each bounce transition (1-2 through 5-6)
+        for bounce_transition in range(1, 6):  # 1 to 5
+            cors = []
+            uncertainties = []
+            
+            for pressure in pressures_psi:
+                avg_heights = np.mean(trial_data[pressure], axis=0)
+                cor = np.sqrt(avg_heights[bounce_transition] / avg_heights[bounce_transition - 1])
+                uncertainty = df_cor_absolute_uncertainties[
+                    df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
+                ][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
+                
+                cors.append(cor)
+                uncertainties.append(uncertainty)
+            
+            # Add logarithmic fit and create label with equation
+            z = np.polyfit(np.log(pressures_psi), cors, 1)
+            equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+            
+            # Plot data, error bars, and fit with matching colors
+            line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
+                              fmt='o', label=f'Bounce {bounce_transition}-{bounce_transition+1}\n{equation}',
+                              markersize=3, capsize=3, capthick=1, elinewidth=1)
+            color = line.lines[0].get_color()
+            
+            # Set the error bar color to match the points
+            line[1][0].set_color(color)
+            line[2][0].set_color(color)
+            
+            # Plot logarithmic fit with matching color
+            x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+            plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
-    # Then plot subsequent bounces (1-2 through 5-6)
-    for bounce_transition in range(1, 6):
+        plt.xlabel('Internal Pressure (PSI)')
+        plt.ylabel('Coefficient of Restitution (COR)')
+        plt.title('Pressure vs. Subsequent Coefficients of Restitution')
+        plt.legend()
+        plt.grid(True)
+        plot_and_save(fig5b, 'pressure_vs_subsequent_cor.png')
+
+        # 6. Combined Pressure vs All COR plot with logarithmic fits
+        fig6 = plt.figure(figsize=(15.18, 7.38))
+        
+        # First plot initial bounce (0-1)
         cors = []
         uncertainties = []
         for pressure in pressures_psi:
-            avg_heights = np.mean(trial_data[pressure], axis=0)
-            cor = np.sqrt(avg_heights[bounce_transition] / avg_heights[bounce_transition - 1])
+            avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
+            cor = np.sqrt(avg_height / 1.7)
             uncertainty = df_cor_absolute_uncertainties[
                 df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
-            ][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
+            ]['Bounce 0-1'].values[0]
             cors.append(cor)
             uncertainties.append(uncertainty)
         
@@ -608,8 +850,8 @@ if show_graphs:
         equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
         
         line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
-                          fmt='o', label=f'Bounce {bounce_transition}-{bounce_transition+1}\n{equation}',
-                          markersize=3, capsize=3, capthick=1, elinewidth=1)
+                    fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
+                    markersize=3, capsize=3, capthick=1, elinewidth=1)
         color = line.lines[0].get_color()
         line[1][0].set_color(color)
         line[2][0].set_color(color)
@@ -617,44 +859,70 @@ if show_graphs:
         x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
         plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
-    plt.xlabel('Internal Pressure (PSI)')
-    plt.ylabel('Coefficient of Restitution (COR)')
-    plt.title('Pressure vs. All Coefficients of Restitution')
-    plt.legend()
-    plt.grid(True)
-    plot_and_save(fig6, 'pressure_vs_all_cor.png')
+        # Then plot subsequent bounces (1-2 through 5-6)
+        for bounce_transition in range(1, 6):
+            cors = []
+            uncertainties = []
+            for pressure in pressures_psi:
+                avg_heights = np.mean(trial_data[pressure], axis=0)
+                cor = np.sqrt(avg_heights[bounce_transition] / avg_heights[bounce_transition - 1])
+                uncertainty = df_cor_absolute_uncertainties[
+                    df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
+                ][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
+                cors.append(cor)
+                uncertainties.append(uncertainty)
+            
+            z = np.polyfit(np.log(pressures_psi), cors, 1)
+            equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+            
+            line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
+                              fmt='o', label=f'Bounce {bounce_transition}-{bounce_transition+1}\n{equation}',
+                              markersize=3, capsize=3, capthick=1, elinewidth=1)
+            color = line.lines[0].get_color()
+            line[1][0].set_color(color)
+            line[2][0].set_color(color)
+            
+            x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+            plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
-    # 7. Average COR vs Pressure plot with logarithmic fit
-    fig7 = plt.figure(figsize=(15.18, 7.38))
-    
-    # Get data from df_cor_analysis
-    pressures = df_cor_analysis['Pressure (PSI)'].values
-    avg_cors = df_cor_analysis['Average COR'].values
-    abs_uncertainties = df_cor_analysis['Avg Absolute Uncertainty'].values
-    
-    # Add logarithmic fit and create label with equation
-    z = np.polyfit(np.log(pressures), avg_cors, 1)
-    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
-    
-    # Plot data with error bars
-    line = plt.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
-                fmt='o', label=f'Average COR\n{equation}',
-                markersize=5, capsize=3, capthick=1, elinewidth=1)
-    
-    # Plot logarithmic fit
-    x_fit = np.linspace(min(pressures), max(pressures), 100)
-    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, 
-             color=line.lines[0].get_color())
+        plt.xlabel('Internal Pressure (PSI)')
+        plt.ylabel('Coefficient of Restitution (COR)')
+        plt.title('Pressure vs. All Coefficients of Restitution')
+        plt.legend()
+        plt.grid(True)
+        plot_and_save(fig6, 'pressure_vs_all_cor.png')
 
-    plt.xlabel('Internal Pressure (PSI)')
-    plt.ylabel('Average Coefficient of Restitution (COR)')
-    plt.title('Pressure vs. Average COR with Absolute Uncertainties')
-    plt.legend()
-    plt.grid(True)
-    plot_and_save(fig7, 'pressure_vs_average_cor.png')
+        # 7. Average COR vs Pressure plot with logarithmic fit
+        fig7 = plt.figure(figsize=(15.18, 7.38))
+        
+        # Get data from df_cor_analysis
+        pressures = df_cor_analysis['Pressure (PSI)'].values
+        avg_cors = df_cor_analysis['Average COR'].values
+        abs_uncertainties = df_cor_analysis['Avg Absolute Uncertainty'].values
+        
+        # Add logarithmic fit and create label with equation
+        z = np.polyfit(np.log(pressures), avg_cors, 1)
+        equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+        
+        # Plot data with error bars
+        line = plt.errorbar(pressures, avg_cors, yerr=abs_uncertainties,
+                    fmt='o', label=f'Average COR\n{equation}',
+                    markersize=5, capsize=3, capthick=1, elinewidth=1)
+        
+        # Plot logarithmic fit
+        x_fit = np.linspace(min(pressures), max(pressures), 100)
+        plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, 
+                 color=line.lines[0].get_color())
 
-    if save_graphs:
-        print("\nGraphs have been saved successfully.")
+        plt.xlabel('Internal Pressure (PSI)')
+        plt.ylabel('Average Coefficient of Restitution (COR)')
+        plt.title('Pressure vs. Average COR with Absolute Uncertainties')
+        plt.legend()
+        plt.grid(True)
+        plot_and_save(fig7, 'pressure_vs_average_cor.png')
+
+        if save_graphs:
+            print("\nGraphs have been saved successfully.")
 
 # Add this to the excel_files dictionary before the export loop
 excel_files['cor_analysis'] = {
@@ -667,17 +935,30 @@ for file_info in excel_files.values():
     try:
         file_path = os.path.join(excel_folder, file_info['filename'])
         if isinstance(file_info['df'], list):
-            # Create Excel writer object
             with pd.ExcelWriter(file_path) as writer:
-                # Write each DataFrame to a different sheet
                 for df, sheet_name in zip(file_info['df'], file_info['sheet_names']):
                     df.to_excel(writer, sheet_name=sheet_name, index=False)
         else:
             file_info['df'].to_excel(file_path, index=False)
-        print(f"Successfully exported {file_info['filename']} to excel_files folder")
     except Exception as e:
-        print(f"Error exporting {file_info['filename']}: {str(e)}")
+        print(f"Error during temporary file creation: {str(e)}")
 
-print("\nAll files have been processed.")
-print(f"Graphs are saved in: {graphs_folder}")
-print(f"Excel files are saved in: {excel_folder}")
+# Delete all Excel files and the excel_folder
+for file_info in excel_files.values():
+    try:
+        file_path = os.path.join(excel_folder, file_info['filename'])
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        print(f"Error deleting temporary file: {str(e)}")
+
+# Remove the excel_folder if it's empty
+try:
+    os.rmdir(excel_folder)
+except Exception as e:
+    print(f"Error removing excel folder: {str(e)}")
+
+# Only print information about graphs
+print("\nAll calculations completed.")
+if 'graphs_folder' in locals() and os.path.exists(graphs_folder):
+    print(f"Graphs are saved in: {graphs_folder}")
