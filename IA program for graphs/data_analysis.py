@@ -625,21 +625,46 @@ if graph_choice.isdigit() and 1 <= int(graph_choice) <= 8:
             
             # Get fractional uncertainties from df_cor_analysis
             fractional_uncertainties = df_cor_analysis['Fractional Uncertainty'].values
+            yerr = avg_cors * fractional_uncertainties
             
-            # Add linear fit and create label with equation
+            # Calculate the best fit line
             z = np.polyfit(ln_pressures, avg_cors, 1)
             equation = f'y = {z[0]:.3f}x + {z[1]:.3f}'
             r_squared = np.corrcoef(ln_pressures, avg_cors)[0,1]**2
             
-            # Plot data with fractional uncertainties as error bars
-            line = plt.errorbar(ln_pressures, avg_cors, yerr=avg_cors * fractional_uncertainties,
-                        fmt='o', label=f'Average COR\n{equation}\nR² = {r_squared:.3f}',
-                        markersize=5, capsize=3, capthick=1, elinewidth=1)
+            # Calculate maximum and minimum slope lines
+            # Maximum slope line through (x1,y1+dy1) and (x2,y2-dy2)
+            x1, x2 = ln_pressures[0], ln_pressures[-1]
+            y1, y2 = avg_cors[0], avg_cors[-1]
+            dy1, dy2 = yerr[0], yerr[-1]
             
-            # Plot linear fit
+            max_slope = ((y2 + dy2) - (y1 - dy1)) / (x2 - x1)
+            max_intercept = (y1 - dy1) - max_slope * x1
+            max_equation = f'y = {max_slope:.3f}x + {max_intercept:.3f}'
+            
+            # Minimum slope line through (x1,y1-dy1) and (x2,y2+dy2)
+            min_slope = ((y2 - dy2) - (y1 + dy1)) / (x2 - x1)
+            min_intercept = (y1 + dy1) - min_slope * x1
+            min_equation = f'y = {min_slope:.3f}x + {min_intercept:.3f}'
+            
+            # Plot data with fractional uncertainties as error bars
+            line = plt.errorbar(ln_pressures, avg_cors, yerr=yerr,
+                        fmt='o', label=f'Average COR\nBest fit: {equation}\nR² = {r_squared:.3f}',
+                        markersize=5, capsize=3, capthick=1, elinewidth=1)
+            color = line.lines[0].get_color()
+            
+            # Plot best fit line
             x_fit = np.linspace(min(ln_pressures), max(ln_pressures), 100)
             plt.plot(x_fit, z[0] * x_fit + z[1], '--', alpha=0.5, 
-                     color=line.lines[0].get_color())
+                     color=color, label='Best fit')
+            
+            # Plot maximum slope line
+            plt.plot(x_fit, max_slope * x_fit + max_intercept, ':',
+                    alpha=0.5, color='red', label=f'Maximum slope: {max_equation}')
+            
+            # Plot minimum slope line
+            plt.plot(x_fit, min_slope * x_fit + min_intercept, ':',
+                    alpha=0.5, color='blue', label=f'Minimum slope: {min_equation}')
 
             plt.xlabel('ln(Pressure) [ln(PSI)]')
             plt.ylabel('Average Coefficient of Restitution (COR)')
@@ -649,7 +674,7 @@ if graph_choice.isdigit() and 1 <= int(graph_choice) <= 8:
             if save_single:
                 fig8.savefig(os.path.join(graphs_folder, 'ln_pressure_vs_average_cor.png'), dpi=100, bbox_inches='tight')
             plt.show()
-            plt.close(fig8)  # Close the figure after showing
+            plt.close(fig8)
     
     # Create the graphs folder if saving is requested
     if save_single:
@@ -970,21 +995,46 @@ else:
         
         # Get fractional uncertainties from df_cor_analysis
         fractional_uncertainties = df_cor_analysis['Fractional Uncertainty'].values
+        yerr = avg_cors * fractional_uncertainties
         
-        # Add linear fit and create label with equation
+        # Calculate the best fit line
         z = np.polyfit(ln_pressures, avg_cors, 1)
         equation = f'y = {z[0]:.3f}x + {z[1]:.3f}'
         r_squared = np.corrcoef(ln_pressures, avg_cors)[0,1]**2
         
-        # Plot data with fractional uncertainties as error bars
-        line = plt.errorbar(ln_pressures, avg_cors, yerr=avg_cors * fractional_uncertainties,
-                    fmt='o', label=f'Average COR\n{equation}\nR² = {r_squared:.3f}',
-                    markersize=5, capsize=3, capthick=1, elinewidth=1)
+        # Calculate maximum and minimum slope lines
+        # Maximum slope line through (x1,y1+dy1) and (x2,y2-dy2)
+        x1, x2 = ln_pressures[0], ln_pressures[-1]
+        y1, y2 = avg_cors[0], avg_cors[-1]
+        dy1, dy2 = yerr[0], yerr[-1]
         
-        # Plot linear fit
+        max_slope = ((y2 + dy2) - (y1 - dy1)) / (x2 - x1)
+        max_intercept = (y1 - dy1) - max_slope * x1
+        max_equation = f'y = {max_slope:.3f}x + {max_intercept:.3f}'
+        
+        # Minimum slope line through (x1,y1-dy1) and (x2,y2+dy2)
+        min_slope = ((y2 - dy2) - (y1 + dy1)) / (x2 - x1)
+        min_intercept = (y1 + dy1) - min_slope * x1
+        min_equation = f'y = {min_slope:.3f}x + {min_intercept:.3f}'
+        
+        # Plot data with fractional uncertainties as error bars
+        line = plt.errorbar(ln_pressures, avg_cors, yerr=yerr,
+                    fmt='o', label=f'Average COR\nBest fit: {equation}\nR² = {r_squared:.3f}',
+                    markersize=5, capsize=3, capthick=1, elinewidth=1)
+        color = line.lines[0].get_color()
+        
+        # Plot best fit line
         x_fit = np.linspace(min(ln_pressures), max(ln_pressures), 100)
         plt.plot(x_fit, z[0] * x_fit + z[1], '--', alpha=0.5, 
-                 color=line.lines[0].get_color())
+                 color=color, label='Best fit')
+        
+        # Plot maximum slope line
+        plt.plot(x_fit, max_slope * x_fit + max_intercept, ':',
+                alpha=0.5, color='red', label=f'Maximum slope: {max_equation}')
+        
+        # Plot minimum slope line
+        plt.plot(x_fit, min_slope * x_fit + min_intercept, ':',
+                alpha=0.5, color='blue', label=f'Minimum slope: {min_equation}')
 
         plt.xlabel('ln(Pressure) [ln(PSI)]')
         plt.ylabel('Average Coefficient of Restitution (COR)')
