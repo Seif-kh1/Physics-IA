@@ -174,6 +174,183 @@ for pressure in pressures_psi:
 # Create DataFrame for COR absolute uncertainties
 df_cor_absolute_uncertainties = pd.DataFrame(cor_absolute_uncertainties_data)
 
+# COR Analysis with uncertainties
+h0 = 1.7  # Initial drop height in meters
+dh = 0.020  # Uncertainty in height measurement
+
+# Calculate detailed COR analysis
+cor_analysis_results = []
+
+for pressure, trials in trial_data.items():
+    cors = []
+    fractional_uncertainties = []
+    
+    for trial in trials:
+        cor_values = [np.sqrt(trial[0] / h0)]  # First COR
+        unc_values = [0.5 * (dh / trial[0] + dh / h0)]  # First fractional uncertainty
+        
+        for i in range(1, len(trial)):
+            cor = np.sqrt(trial[i] / trial[i - 1])
+            cor_values.append(cor)
+            unc = 0.5 * (dh / trial[i] + dh / trial[i - 1])
+            unc_values.append(unc)
+        
+        cors.extend(cor_values)
+        fractional_uncertainties.extend(unc_values)
+    
+    # Compute averages
+    avg_cor = np.mean(cors)
+    avg_fractional_uncertainty = np.mean(fractional_uncertainties)
+    avg_absolute_uncertainty = avg_fractional_uncertainty * avg_cor
+    
+    # Store results
+    cor_analysis_results.append({
+        "Pressure (PSI)": pressure,
+        "Average COR": avg_cor,
+        "Avg Fractional Uncertainty": avg_fractional_uncertainty,
+        "Avg Absolute Uncertainty": avg_absolute_uncertainty
+    })
+
+# Create DataFrame for COR analysis
+df_cor_analysis = pd.DataFrame(cor_analysis_results)
+
+# After creating df_cor_analysis, format it to better display the results
+df_cor_analysis = df_cor_analysis.round({
+    "Average COR": 4,
+    "Avg Fractional Uncertainty": 4,
+    "Avg Absolute Uncertainty": 4
+})
+
+# Sort by pressure from highest to lowest
+df_cor_analysis = df_cor_analysis.sort_values(by="Pressure (PSI)", ascending=False)
+
+# Calculate COR for all trials and pressures
+data = []
+h_initial = 1.7
+for pressure in pressures_psi:
+    for trial in range(5):
+        heights = trial_data[pressure][trial]
+        # Calculate initial COR (Bounce 0-1)
+        initial_cor = np.sqrt(heights[0] / h_initial)
+        # Calculate remaining CORs
+        cors = calculate_cor(heights)
+        
+        # Add initial COR to data
+        data.append({
+            'Pressure (PSI)': pressure,
+            'Trial': trial + 1,
+            'Bounce': 'Bounce 0-1',
+            'COR': initial_cor
+        })
+        
+        # Add remaining CORs
+        for bounce_num, cor in enumerate(cors, 1):
+            data.append({
+                'Pressure (PSI)': pressure,
+                'Trial': trial + 1,
+                'Bounce': f'Bounce {bounce_num}-{bounce_num+1}',
+                'COR': cor
+            })
+
+# Create DataFrame for COR by trial
+df = pd.DataFrame(data)
+df_pivot = df.pivot_table(
+    values='COR',
+    index=['Pressure (PSI)', 'Trial'],
+    columns='Bounce',
+    aggfunc='first'
+).reset_index()
+
+# Calculate and export average heights
+avg_heights_data = []
+bounce_columns = [f'Bounce {i}' for i in range(1, 7)]
+
+for pressure in pressures_psi:
+    # Calculate average height across all trials for each bounce
+    avg_heights = np.mean(trial_data[pressure], axis=0)
+    row_data = {'Pressure (PSI)': pressure}
+    for bounce_num, height in enumerate(avg_heights, 1):
+        row_data[f'Bounce {bounce_num}'] = height
+    avg_heights_data.append(row_data)
+
+# Create and export average heights DataFrame
+df_avg_heights = pd.DataFrame(avg_heights_data)
+
+# Create raw trial heights DataFrame
+raw_heights_data = []
+for pressure in pressures_psi:
+    for trial_num in range(5):
+        row_data = {
+            'Pressure (PSI)': pressure,
+            'Trial': trial_num + 1
+        }
+        # Add each bounce height
+        for bounce_num, height in enumerate(trial_data[pressure][trial_num], 1):
+            row_data[f'Bounce {bounce_num}'] = height
+        raw_heights_data.append(row_data)
+
+# Create DataFrame with raw heights
+df_raw_heights = pd.DataFrame(raw_heights_data)
+
+# Calculate height uncertainties
+height_uncertainties_data = []
+for pressure in pressures_psi:
+    row_data = {'Pressure (PSI)': pressure}
+    
+    # For each bounce number
+    for bounce_num in range(6):  # 6 bounces (0-5)
+        # Get all heights for this bounce across trials
+        heights_at_bounce = [trial[bounce_num] for trial in trial_data[pressure]]
+        # Calculate uncertainty as (max - min)/2
+        uncertainty = (max(heights_at_bounce) - min(heights_at_bounce)) / 2
+        row_data[f'Bounce {bounce_num + 1}'] = uncertainty
+    
+    height_uncertainties_data.append(row_data)
+
+# Create DataFrame for uncertainties
+df_height_uncertainties = pd.DataFrame(height_uncertainties_data)
+
+# Calculate fractional height uncertainties
+fractional_uncertainties_data = []
+for pressure in pressures_psi:
+    row_data = {'Pressure (PSI)': pressure}
+    avg_heights = np.mean(trial_data[pressure], axis=0)
+    
+    # For each bounce number
+    for bounce_num in range(6):
+        # Get absolute uncertainty
+        heights_at_bounce = [trial[bounce_num] for trial in trial_data[pressure]]
+        abs_uncertainty = (max(heights_at_bounce) - min(heights_at_bounce)) / 2
+        # Calculate fractional uncertainty (absolute uncertainty / magnitude)
+        fractional_uncertainty = abs_uncertainty / avg_heights[bounce_num]
+        row_data[f'Bounce {bounce_num + 1}'] = fractional_uncertainty
+    
+    fractional_uncertainties_data.append(row_data)
+
+# Create DataFrame for fractional uncertainties
+df_fractional_uncertainties = pd.DataFrame(fractional_uncertainties_data)
+
+# Create dictionary for Excel files
+excel_files = {
+    'COR_by_trial': {
+        'df': df_pivot,
+        'filename': 'coefficient_of_restitution_by_trial.xlsx'
+    },
+    'average_heights': {
+        'df': [df_avg_heights, df_height_uncertainties, df_fractional_uncertainties],
+        'filename': 'average_heights_by_pressure.xlsx',
+        'sheet_names': ['Average Heights', 'Height Uncertainties', 'Fractional Uncertainties']
+    },
+    'raw_heights': {
+        'df': df_raw_heights,
+        'filename': 'raw_rebound_heights.xlsx'
+    },
+    'cor_averages': {
+        'df': df_cor_analysis,
+        'filename': 'average_cor_with_uncertainties.xlsx'
+    }
+}
+
 # Ask user if they want to see the graphs
 show_graphs = input("Do you want to see the graphs? (y/n): ").lower().strip() == 'y'
 
@@ -450,157 +627,10 @@ if show_graphs:
     if save_graphs:
         print("\nGraphs have been saved successfully.")
 
-# Calculate COR for all trials and pressures
-data = []
-h_initial = 1.7
-for pressure in pressures_psi:
-    for trial in range(5):
-        heights = trial_data[pressure][trial]
-        # Calculate initial COR (Bounce 0-1)
-        initial_cor = np.sqrt(heights[0] / h_initial)
-        # Calculate remaining CORs
-        cors = calculate_cor(heights)
-        
-        # Add initial COR to data
-        data.append({
-            'Pressure (PSI)': pressure,
-            'Trial': trial + 1,
-            'Bounce': 'Bounce 0-1',
-            'COR': initial_cor
-        })
-        
-        # Add remaining CORs
-        for bounce_num, cor in enumerate(cors, 1):
-            data.append({
-                'Pressure (PSI)': pressure,
-                'Trial': trial + 1,
-                'Bounce': f'Bounce {bounce_num}-{bounce_num+1}',
-                'COR': cor
-            })
-
-# Create DataFrame for COR by trial
-df = pd.DataFrame(data)
-df_pivot = df.pivot_table(
-    values='COR',
-    index=['Pressure (PSI)', 'Trial'],
-    columns='Bounce',
-    aggfunc='first'
-).reset_index()
-
-# Calculate and export average heights
-avg_heights_data = []
-bounce_columns = [f'Bounce {i}' for i in range(1, 7)]
-
-for pressure in pressures_psi:
-    # Calculate average height across all trials for each bounce
-    avg_heights = np.mean(trial_data[pressure], axis=0)
-    row_data = {'Pressure (PSI)': pressure}
-    for bounce_num, height in enumerate(avg_heights, 1):
-        row_data[f'Bounce {bounce_num}'] = height
-    avg_heights_data.append(row_data)
-
-# Create and export average heights DataFrame
-df_avg_heights = pd.DataFrame(avg_heights_data)
-
-# Calculate and export average COR
-avg_cor_data = []
-h_initial = 1.7  # Initial drop height
-
-for pressure in pressures_psi:
-    # Calculate average heights for this pressure
-    avg_heights = np.mean(trial_data[pressure], axis=0)
-    
-    # Calculate initial COR (Bounce 0-1)
-    initial_cor = np.sqrt(avg_heights[0] / h_initial)
-    
-    # Calculate remaining CORs
-    remaining_cors = np.mean([calculate_cor(trial) for trial in trial_data[pressure]], axis=0)
-    
-    # Create row data with all CORs
-    row_data = {'Pressure (PSI)': pressure}
-    row_data['Bounce 0-1'] = initial_cor
-    for bounce_num, cor in enumerate(remaining_cors, 1):
-        row_data[f'Bounce {bounce_num}-{bounce_num+1}'] = cor
-    
-    avg_cor_data.append(row_data)
-
-# Create and export average COR DataFrame
-df_avg_cor = pd.DataFrame(avg_cor_data)
-
-# Create raw trial heights DataFrame
-raw_heights_data = []
-for pressure in pressures_psi:
-    for trial_num in range(5):
-        row_data = {
-            'Pressure (PSI)': pressure,
-            'Trial': trial_num + 1
-        }
-        # Add each bounce height
-        for bounce_num, height in enumerate(trial_data[pressure][trial_num], 1):
-            row_data[f'Bounce {bounce_num}'] = height
-        raw_heights_data.append(row_data)
-
-# Create DataFrame with raw heights
-df_raw_heights = pd.DataFrame(raw_heights_data)
-
-# Calculate height uncertainties
-height_uncertainties_data = []
-for pressure in pressures_psi:
-    row_data = {'Pressure (PSI)': pressure}
-    
-    # For each bounce number
-    for bounce_num in range(6):  # 6 bounces (0-5)
-        # Get all heights for this bounce across trials
-        heights_at_bounce = [trial[bounce_num] for trial in trial_data[pressure]]
-        # Calculate uncertainty as (max - min)/2
-        uncertainty = (max(heights_at_bounce) - min(heights_at_bounce)) / 2
-        row_data[f'Bounce {bounce_num + 1}'] = uncertainty
-    
-    height_uncertainties_data.append(row_data)
-
-# Create DataFrame for uncertainties
-df_height_uncertainties = pd.DataFrame(height_uncertainties_data)
-
-# Calculate fractional height uncertainties
-fractional_uncertainties_data = []
-for pressure in pressures_psi:
-    row_data = {'Pressure (PSI)': pressure}
-    avg_heights = np.mean(trial_data[pressure], axis=0)
-    
-    # For each bounce number
-    for bounce_num in range(6):
-        # Get absolute uncertainty
-        heights_at_bounce = [trial[bounce_num] for trial in trial_data[pressure]]
-        abs_uncertainty = (max(heights_at_bounce) - min(heights_at_bounce)) / 2
-        # Calculate fractional uncertainty (absolute uncertainty / magnitude)
-        fractional_uncertainty = abs_uncertainty / avg_heights[bounce_num]
-        row_data[f'Bounce {bounce_num + 1}'] = fractional_uncertainty
-    
-    fractional_uncertainties_data.append(row_data)
-
-# Create DataFrame for fractional uncertainties
-df_fractional_uncertainties = pd.DataFrame(fractional_uncertainties_data)
-
-# Create all three Excel files with proper paths
-excel_files = {
-    'COR_by_trial': {
-        'df': df_pivot,
-        'filename': 'coefficient_of_restitution_by_trial.xlsx'
-    },
-    'average_heights': {
-        'df': [df_avg_heights, df_height_uncertainties, df_fractional_uncertainties],
-        'filename': 'average_heights_by_pressure.xlsx',
-        'sheet_names': ['Average Heights', 'Height Uncertainties', 'Fractional Uncertainties']
-    },
-    'average_COR': {
-        'df': [df_avg_cor, df_cor_fractional_uncertainties, df_cor_absolute_uncertainties],
-        'filename': 'average_cor_by_pressure.xlsx',
-        'sheet_names': ['Average COR', 'COR Fractional Uncertainties', 'COR Absolute Uncertainties']
-    },
-    'raw_heights': {
-        'df': df_raw_heights,
-        'filename': 'raw_rebound_heights.xlsx'
-    }
+# Add this to the excel_files dictionary before the export loop
+excel_files['cor_analysis'] = {
+    'df': df_cor_analysis,
+    'filename': 'cor_analysis_results.xlsx'
 }
 
 # Export all Excel files
@@ -622,68 +652,3 @@ for file_info in excel_files.values():
 print("\nAll files have been processed.")
 print(f"Graphs are saved in: {graphs_folder}")
 print(f"Excel files are saved in: {excel_folder}")
-
-if show_graphs:
-    # 7. Average COR vs Pressure plot with logarithmic fit
-    fig7 = plt.figure(figsize=(15.18, 7.38))
-    
-    # Calculate average COR for each pressure across all bounces
-    avg_cors = []
-    avg_uncertainties = []
-    
-    for pressure in pressures_psi:
-        # Get all COR values for this pressure
-        cors = []
-        uncertainties = []
-        
-        # Add initial COR (0-1)
-        avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
-        initial_cor = np.sqrt(avg_height / 1.7)
-        initial_uncertainty = df_cor_absolute_uncertainties[
-            df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
-        ]['Bounce 0-1'].values[0]
-        
-        cors.append(initial_cor)
-        uncertainties.append(initial_uncertainty)
-        
-        # Add subsequent CORs (1-2 through 5-6)
-        for bounce_transition in range(1, 6):
-            cor = df_avg_cor[df_avg_cor['Pressure (PSI)'] == pressure][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
-            uncertainty = df_cor_absolute_uncertainties[
-                df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
-            ][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
-            
-            cors.append(cor)
-            uncertainties.append(uncertainty)
-        
-        # Calculate average COR and propagated uncertainty for this pressure
-        avg_cor = np.mean(cors)
-        avg_uncertainty = np.sqrt(np.sum(np.array(uncertainties)**2)) / len(uncertainties)  # Propagated uncertainty
-        
-        avg_cors.append(avg_cor)
-        avg_uncertainties.append(avg_uncertainty)
-    
-    # Add logarithmic fit and create label with equation
-    z = np.polyfit(np.log(pressures_psi), avg_cors, 1)
-    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
-    
-    # Plot data, error bars, and fit with matching colors
-    line = plt.errorbar(pressures_psi, avg_cors, yerr=avg_uncertainties,
-                       fmt='o', label=f'Average COR\n{equation}',
-                       markersize=3, capsize=3, capthick=1, elinewidth=1)
-    color = line.lines[0].get_color()
-    
-    # Set the error bar color to match the points
-    line[1][0].set_color(color)
-    line[2][0].set_color(color)
-    
-    # Plot logarithmic fit with matching color
-    x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
-
-    plt.xlabel('Internal Pressure (PSI)')
-    plt.ylabel('Average Coefficient of Restitution (COR)')
-    plt.title('Pressure vs. Average Coefficient of Restitution Across All Bounces')
-    plt.legend()
-    plt.grid(True)
-    plot_and_save(fig7, 'pressure_vs_average_cor.png')
