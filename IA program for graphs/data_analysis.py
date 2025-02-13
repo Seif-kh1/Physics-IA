@@ -300,7 +300,7 @@ if show_graphs:
     plt.grid(True)
     plot_and_save(fig4, 'bounce_vs_cor.png')
 
-    # 5a. Pressure vs Initial COR (Bounce 0-1) plot with polynomial fit
+    # 5a. Pressure vs Initial COR (Bounce 0-1) plot with logarithmic fit
     fig5a = plt.figure(figsize=(15.18, 7.38))
     
     # Get data for initial bounce (0-1)
@@ -318,24 +318,23 @@ if show_graphs:
         cors.append(cor)
         uncertainties.append(uncertainty)
     
-    # Add polynomial fit and create label with equation
-    z = np.polyfit(pressures_psi, cors, 2)
-    p = np.poly1d(z)
-    equation = f'y = {z[0]:.3f}x² + {z[1]:.3f}x + {z[2]:.3f}'
+    # Add logarithmic fit and create label with equation
+    z = np.polyfit(np.log(pressures_psi), cors, 1)
+    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
     
     # Plot data, error bars, and fit with matching colors
     line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
                 fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
                 markersize=3, capsize=3, capthick=1, elinewidth=1)
-    color = line.lines[0].get_color()  # Get color from the plotted points
+    color = line.lines[0].get_color()
     
     # Set the error bar color to match the points
-    line[1][0].set_color(color)  # Error bar lines
-    line[2][0].set_color(color)  # Error bar caps
+    line[1][0].set_color(color)
+    line[2][0].set_color(color)
     
-    # Plot polynomial fit with matching color
+    # Plot logarithmic fit with matching color
     x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-    plt.plot(x_fit, p(x_fit), '--', alpha=0.5, color=color)
+    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
     plt.xlabel('Internal Pressure (PSI)')
     plt.ylabel('Coefficient of Restitution (COR)')
@@ -344,7 +343,7 @@ if show_graphs:
     plt.grid(True)
     plot_and_save(fig5a, 'pressure_vs_initial_cor.png')
 
-    # 5b. Pressure vs Subsequent COR plot with polynomial fits
+    # 5b. Pressure vs Subsequent COR plot with logarithmic fits
     fig5b = plt.figure(figsize=(15.18, 7.38))
     
     # Get data for each bounce transition (1-2 through 5-6)
@@ -362,24 +361,23 @@ if show_graphs:
             cors.append(cor)
             uncertainties.append(uncertainty)
         
-        # Add polynomial fit and create label with equation
-        z = np.polyfit(pressures_psi, cors, 2)
-        p = np.poly1d(z)
-        equation = f'y = {z[0]:.3f}x² + {z[1]:.3f}x + {z[2]:.3f}'
+        # Add logarithmic fit and create label with equation
+        z = np.polyfit(np.log(pressures_psi), cors, 1)
+        equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
         
         # Plot data, error bars, and fit with matching colors
         line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
                           fmt='o', label=f'Bounce {bounce_transition}-{bounce_transition+1}\n{equation}',
                           markersize=3, capsize=3, capthick=1, elinewidth=1)
-        color = line.lines[0].get_color()  # Get color from the plotted points
+        color = line.lines[0].get_color()
         
         # Set the error bar color to match the points
-        line[1][0].set_color(color)  # Error bar lines
-        line[2][0].set_color(color)  # Error bar caps
+        line[1][0].set_color(color)
+        line[2][0].set_color(color)
         
-        # Plot polynomial fit with matching color
+        # Plot logarithmic fit with matching color
         x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-        plt.plot(x_fit, p(x_fit), '--', alpha=0.5, color=color)
+        plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
     plt.xlabel('Internal Pressure (PSI)')
     plt.ylabel('Coefficient of Restitution (COR)')
@@ -388,7 +386,7 @@ if show_graphs:
     plt.grid(True)
     plot_and_save(fig5b, 'pressure_vs_subsequent_cor.png')
 
-    # 6. Combined Pressure vs All COR plot with polynomial fits
+    # 6. Combined Pressure vs All COR plot with logarithmic fits
     fig6 = plt.figure(figsize=(15.18, 7.38))
     
     # First plot initial bounce (0-1)
@@ -403,9 +401,8 @@ if show_graphs:
         cors.append(cor)
         uncertainties.append(uncertainty)
     
-    z = np.polyfit(pressures_psi, cors, 2)
-    p = np.poly1d(z)
-    equation = f'y = {z[0]:.3f}x² + {z[1]:.3f}x + {z[2]:.3f}'
+    z = np.polyfit(np.log(pressures_psi), cors, 1)
+    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
     
     line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
                 fmt='o', label=f'Initial Bounce (0-1)\n{equation}',
@@ -415,7 +412,7 @@ if show_graphs:
     line[2][0].set_color(color)
     
     x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-    plt.plot(x_fit, p(x_fit), '--', alpha=0.5, color=color)
+    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
     # Then plot subsequent bounces (1-2 through 5-6)
     for bounce_transition in range(1, 6):
@@ -430,9 +427,8 @@ if show_graphs:
             cors.append(cor)
             uncertainties.append(uncertainty)
         
-        z = np.polyfit(pressures_psi, cors, 2)
-        p = np.poly1d(z)
-        equation = f'y = {z[0]:.3f}x² + {z[1]:.3f}x + {z[2]:.3f}'
+        z = np.polyfit(np.log(pressures_psi), cors, 1)
+        equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
         
         line = plt.errorbar(pressures_psi, cors, yerr=uncertainties,
                           fmt='o', label=f'Bounce {bounce_transition}-{bounce_transition+1}\n{equation}',
@@ -442,7 +438,7 @@ if show_graphs:
         line[2][0].set_color(color)
         
         x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
-        plt.plot(x_fit, p(x_fit), '--', alpha=0.5, color=color)
+        plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
 
     plt.xlabel('Internal Pressure (PSI)')
     plt.ylabel('Coefficient of Restitution (COR)')
