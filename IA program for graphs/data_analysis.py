@@ -930,6 +930,9 @@ excel_files['cor_analysis'] = {
     'filename': 'cor_analysis_results.xlsx'
 }
 
+# Before exporting Excel files, ask user preference
+save_excel = input("Do you want to download the Excel sheets? (y/n): ").lower().strip() == 'y'
+
 # Export all Excel files
 for file_info in excel_files.values():
     try:
@@ -941,22 +944,27 @@ for file_info in excel_files.values():
         else:
             file_info['df'].to_excel(file_path, index=False)
     except Exception as e:
-        print(f"Error during temporary file creation: {str(e)}")
+        print(f"Error during Excel file creation: {str(e)}")
 
-# Delete all Excel files and the excel_folder
-for file_info in excel_files.values():
+# Only delete Excel files if user chose not to save them
+if not save_excel:
+    # Delete all Excel files and the excel_folder
+    for file_info in excel_files.values():
+        try:
+            file_path = os.path.join(excel_folder, file_info['filename'])
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error deleting temporary file: {str(e)}")
+
+    # Remove the excel_folder if it's empty
     try:
-        file_path = os.path.join(excel_folder, file_info['filename'])
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        if os.path.exists(excel_folder) and not os.listdir(excel_folder):
+            os.rmdir(excel_folder)
     except Exception as e:
-        print(f"Error deleting temporary file: {str(e)}")
-
-# Remove the excel_folder if it's empty
-try:
-    os.rmdir(excel_folder)
-except Exception as e:
-    print(f"Error removing excel folder: {str(e)}")
+        print(f"Error removing excel folder: {str(e)}")
+elif save_excel:
+    print(f"\nExcel files have been saved in: {excel_folder}")
 
 # Only print information about graphs
 print("\nAll calculations completed.")
