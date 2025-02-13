@@ -13,11 +13,11 @@ dy_dp = np.ma.masked_invalid(33 / (1000 * p))
 # Create figure
 plt.figure(figsize=(15, 6))
 
-# Plot y = 0.033ln(p) + 0.865
+# Plot e = 0.033ln(p) + 0.865
 plt.subplot(1, 2, 1)
-plt.plot(p, y, label=r'$y = 0.033 \ln(p) + 0.865$', color='b')
+plt.plot(p, y, label=r'$e = 0.033 \ln(p) + 0.865$', color='b')
 plt.xlabel('p')
-plt.ylabel('y')
+plt.ylabel('e')
 plt.title('Function Plot')
 plt.legend()
 plt.grid()
@@ -26,11 +26,11 @@ plt.ylim(0.4, 1)  # Adjusted to show the relevant range
 plt.xticks(np.arange(-1, 11, 2))
 plt.yticks(np.arange(0.4, 1.1, 0.1))
 
-# Plot derivative dy/dp
+# Plot derivative de/dp
 plt.subplot(1, 2, 2)
-plt.plot(p, dy_dp, label=r'$\frac{dy}{dp} = \frac{33}{1000p}$', color='r')
+plt.plot(p, dy_dp, label=r'$\frac{de}{dp} = \frac{33}{1000p}$', color='r')
 plt.xlabel('p')
-plt.ylabel('dy/dp')
+plt.ylabel('de/dp')
 plt.title('Derivative Plot')
 plt.legend()
 plt.grid()
