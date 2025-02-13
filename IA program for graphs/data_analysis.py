@@ -622,3 +622,68 @@ for file_info in excel_files.values():
 print("\nAll files have been processed.")
 print(f"Graphs are saved in: {graphs_folder}")
 print(f"Excel files are saved in: {excel_folder}")
+
+if show_graphs:
+    # 7. Average COR vs Pressure plot with logarithmic fit
+    fig7 = plt.figure(figsize=(15.18, 7.38))
+    
+    # Calculate average COR for each pressure across all bounces
+    avg_cors = []
+    avg_uncertainties = []
+    
+    for pressure in pressures_psi:
+        # Get all COR values for this pressure
+        cors = []
+        uncertainties = []
+        
+        # Add initial COR (0-1)
+        avg_height = np.mean([trial[0] for trial in trial_data[pressure]])
+        initial_cor = np.sqrt(avg_height / 1.7)
+        initial_uncertainty = df_cor_absolute_uncertainties[
+            df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
+        ]['Bounce 0-1'].values[0]
+        
+        cors.append(initial_cor)
+        uncertainties.append(initial_uncertainty)
+        
+        # Add subsequent CORs (1-2 through 5-6)
+        for bounce_transition in range(1, 6):
+            cor = df_avg_cor[df_avg_cor['Pressure (PSI)'] == pressure][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
+            uncertainty = df_cor_absolute_uncertainties[
+                df_cor_absolute_uncertainties['Pressure (PSI)'] == pressure
+            ][f'Bounce {bounce_transition}-{bounce_transition+1}'].values[0]
+            
+            cors.append(cor)
+            uncertainties.append(uncertainty)
+        
+        # Calculate average COR and propagated uncertainty for this pressure
+        avg_cor = np.mean(cors)
+        avg_uncertainty = np.sqrt(np.sum(np.array(uncertainties)**2)) / len(uncertainties)  # Propagated uncertainty
+        
+        avg_cors.append(avg_cor)
+        avg_uncertainties.append(avg_uncertainty)
+    
+    # Add logarithmic fit and create label with equation
+    z = np.polyfit(np.log(pressures_psi), avg_cors, 1)
+    equation = f'y = {z[0]:.3f}ln(x) + {z[1]:.3f}'
+    
+    # Plot data, error bars, and fit with matching colors
+    line = plt.errorbar(pressures_psi, avg_cors, yerr=avg_uncertainties,
+                       fmt='o', label=f'Average COR\n{equation}',
+                       markersize=3, capsize=3, capthick=1, elinewidth=1)
+    color = line.lines[0].get_color()
+    
+    # Set the error bar color to match the points
+    line[1][0].set_color(color)
+    line[2][0].set_color(color)
+    
+    # Plot logarithmic fit with matching color
+    x_fit = np.linspace(min(pressures_psi), max(pressures_psi), 100)
+    plt.plot(x_fit, z[0] * np.log(x_fit) + z[1], '--', alpha=0.5, color=color)
+
+    plt.xlabel('Internal Pressure (PSI)')
+    plt.ylabel('Average Coefficient of Restitution (COR)')
+    plt.title('Pressure vs. Average Coefficient of Restitution Across All Bounces')
+    plt.legend()
+    plt.grid(True)
+    plot_and_save(fig7, 'pressure_vs_average_cor.png')
